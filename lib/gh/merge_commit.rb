@@ -66,8 +66,8 @@ module GH
     end
 
     def force_merge_commit(hash)
-      Timeout.timeout(180) do
-        update(hash) until github_done_checking? hash
+      Timeout.timeout(120) do
+        wait_until_github_is_done_checking(hash)
       end
     rescue TimeoutError
       raise TimeoutError, 'gave up waiting for github to check the merge status'
@@ -75,11 +75,23 @@ module GH
 
     def update(hash)
       hash.merge! backend[url(hash)]
-      sleep 0.5
     end
 
     def url(hash)
       hash['_links']['self']['href']
+    end
+
+    def wait_until_github_is_done_checking(hash)
+      retries = 0
+      until github_done_checking?(hash)
+        update(hash)
+        sleep(interval(retries))
+        retries += 1
+      end
+    end
+    
+    def interval(retries)
+      retries > 0 ? retries ** 0.5 : 0.5
     end
   end
 end
